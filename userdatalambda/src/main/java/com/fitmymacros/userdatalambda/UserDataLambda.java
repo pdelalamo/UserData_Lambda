@@ -8,10 +8,8 @@ import com.amazonaws.services.lambda.runtime.Context;
 import com.amazonaws.services.lambda.runtime.RequestHandler;
 
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
-import software.amazon.awssdk.services.dynamodb.model.AttributeAction;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
-import software.amazon.awssdk.services.dynamodb.model.AttributeValueUpdate;
-import software.amazon.awssdk.services.dynamodb.model.UpdateItemRequest;
+import software.amazon.awssdk.services.dynamodb.model.PutItemRequest;
 
 public class UserDataLambda implements RequestHandler<Map<String, String>, Object> {
 
@@ -36,28 +34,16 @@ public class UserDataLambda implements RequestHandler<Map<String, String>, Objec
      * @param eventData
      */
     private void putItemInDynamoDB(Map<String, String> eventData) {
-        Map<String, AttributeValue> itemAttributes = eventData.entrySet().stream()
-                .collect(Collectors.toMap(Map.Entry::getKey,
-                        e -> AttributeValue.builder()
-                                .s(e.getValue())
-                                .build()));
-
-        Map<String, AttributeValue> primaryKey = new HashMap<>();
-        primaryKey.put("userId", AttributeValue.builder().s(eventData.get("userId").toString()).build());
-
-        UpdateItemRequest request = UpdateItemRequest.builder()
+        PutItemRequest request = PutItemRequest.builder()
                 .tableName(TABLE_NAME)
-                .key(primaryKey)
-                .attributeUpdates(itemAttributes.entrySet().stream()
+                .item(eventData.entrySet().stream()
                         .collect(Collectors.toMap(Map.Entry::getKey,
-                                e -> AttributeValueUpdate.builder()
-                                        .value(e.getValue())
-                                        .action(AttributeAction.PUT)
+                                e -> AttributeValue.builder()
+                                        .s(e.getValue())
                                         .build())))
-                .conditionExpression("attribute_not_exists(userId)")
                 .build();
 
-        ddbClient.updateItem(request);
+        ddbClient.putItem(request);
     }
 
     private Map<String, Object> buildSuccessResponse() {
