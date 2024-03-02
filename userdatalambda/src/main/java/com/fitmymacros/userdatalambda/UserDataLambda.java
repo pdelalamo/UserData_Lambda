@@ -27,7 +27,7 @@ public class UserDataLambda implements RequestHandler<Map<String, String>, Objec
     }
 
     /**
-     * This method takes the event that the lambda receives, that represents the
+     * This method takes the event that the Lambda receives, that represents the
      * data associated with an user, and inserts it, or updates it in the DynamoDB
      * table
      * 
