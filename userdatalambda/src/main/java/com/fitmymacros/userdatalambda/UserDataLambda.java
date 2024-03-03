@@ -11,12 +11,12 @@ import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 import software.amazon.awssdk.services.dynamodb.model.PutItemRequest;
 
-public class UserDataLambda implements RequestHandler<Map<String, String>, Object> {
+public class UserDataLambda implements RequestHandler<Map<String, Object>, Object> {
 
     private static final String TABLE_NAME = "FitMyMacros";
     private final DynamoDbClient ddbClient = DynamoDbClient.create();
 
-    public Object handleRequest(Map<String, String> event, Context context) {
+    public Object handleRequest(Map<String, Object> event, Context context) {
         try {
             putItemInDynamoDB(event);
             return buildSuccessResponse();
@@ -33,17 +33,58 @@ public class UserDataLambda implements RequestHandler<Map<String, String>, Objec
      * 
      * @param eventData
      */
-    private void putItemInDynamoDB(Map<String, String> eventData) {
+    private void putItemInDynamoDB(Map<String, Object> eventData) {
         PutItemRequest request = PutItemRequest.builder()
                 .tableName(TABLE_NAME)
                 .item(eventData.entrySet().stream()
                         .collect(Collectors.toMap(Map.Entry::getKey,
-                                e -> AttributeValue.builder()
-                                        .s(e.getValue())
-                                        .build())))
+                                e -> this.buildAttributeValue(e.getValue()))))
                 .build();
 
         ddbClient.putItem(request);
+    }
+
+    /**
+     * This method checks whether the given entry object is an instance of any of
+     * the
+     * expected types to receive on the json
+     * that represents the event that the lambda handles, and in that case, it
+     * returns the equivalent AttributeValue object. In case the object doesn't
+     * match any of the expected types, an exception is thrown
+     * 
+     * @param entry
+     * @return
+     */
+    private AttributeValue buildAttributeValue(Object entry) {
+        if (entry instanceof String)
+            return AttributeValue.builder()
+                    .s(entry.toString())
+                    .build();
+        else if (entry instanceof String[])
+            return AttributeValue.builder()
+                    .ss((String[]) entry).build();
+        else if (entry instanceof Integer)
+            return AttributeValue.builder()
+                    .n(entry.toString())
+                    .build();
+        else if (entry instanceof Boolean)
+            return AttributeValue.builder()
+                    .bool((Boolean) entry)
+                    .build();
+        else if (entry instanceof Map<?, ?>) {
+            Map<?, ?> mapEntry = (Map<?, ?>) entry;
+            Map<String, AttributeValue> attributeValueMap = new HashMap<>();
+            for (Map.Entry<?, ?> map : mapEntry.entrySet()) {
+                AttributeValue value = buildAttributeValue(map.getValue());
+                if (value != null) {
+                    attributeValueMap.put(map.getKey().toString(), value);
+                }
+            }
+            return AttributeValue.builder()
+                    .m(attributeValueMap)
+                    .build();
+        } else
+            throw new IllegalArgumentException("The following value is not supported: " + entry);
     }
 
     private Map<String, Object> buildSuccessResponse() {
