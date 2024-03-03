@@ -1,6 +1,8 @@
 package com.fitmymacros.userdatalambda;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -63,7 +65,19 @@ public class UserDataLambda implements RequestHandler<Map<String, Object>, Objec
         else if (entry instanceof String[])
             return AttributeValue.builder()
                     .ss((String[]) entry).build();
-        else if (entry instanceof Integer)
+        else if (entry instanceof List<?>) {
+            List<?> listEntry = (List<?>) entry;
+            List<AttributeValue> attributeValues = new ArrayList<>();
+            for (Object item : listEntry) {
+                AttributeValue value = buildAttributeValue(item);
+                if (value != null) {
+                    attributeValues.add(value);
+                }
+            }
+            return AttributeValue.builder()
+                    .l(attributeValues)
+                    .build();
+        } else if (entry instanceof Integer)
             return AttributeValue.builder()
                     .n(entry.toString())
                     .build();
